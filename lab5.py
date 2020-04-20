@@ -3,6 +3,15 @@ from scipy.stats import f, t
 from random import randrange
 from math import sqrt, fabs as fab
 from numpy.linalg import solve
+import time
+
+
+class Profiler(object):
+    def __enter__(self):
+        self._startTime = time.time()
+
+    def __exit__(self, type, value, traceback):
+        print(" => {:.8f} sec".format(time.time() - self._startTime))
 
 
 # Значення за варіантом:
@@ -40,6 +49,7 @@ matrix_pe = [
     [0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
 ]
 
+
 def matrixGenerator():
     # Генеруємо матрицю
     matrix_with_y = [[randrange(min_y, max_y)
@@ -52,13 +62,13 @@ def middleValue(arr, orientation):
     middle = []
     if orientation == 1:  # Середнє значення по рядку
         for rows in range(len(arr)):
-            middle .append(sum(arr[rows]) / len(arr[rows]))
+            middle.append(sum(arr[rows]) / len(arr[rows]))
     else:  # Середнє значення по колонці
         for column in range(len(arr[0])):
             arr_number = []
             for rows in range(len(arr)):
                 arr_number.append(arr[rows][column])
-            middle .append(sum(arr_number) / len(arr_number))
+            middle.append(sum(arr_number) / len(arr_number))
     return middle
 
 
@@ -89,7 +99,6 @@ def x(l1, l2, l3):
     return [x_1, x_2, x_3]
 
 
-
 def a(first, second):  # first = 1, second = 2 : пошук а12
     # Пошук коефіцієнтів а
     need_a = 0
@@ -106,7 +115,6 @@ def find_known(number):
     return need_a
 
 
-
 def check_result(arr_b, k):
     # Перевірка знайдених коефіціентів
     y_i = arr_b[0] + arr_b[1] * matrix[k][0] + arr_b[2] * matrix[k][1] + arr_b[3] * matrix[k][2] + \
@@ -116,34 +124,39 @@ def check_result(arr_b, k):
 
 
 def student_test(arr_b, number_x=10):
-    # Критерій Стьюдента
-    dispersion_b = sqrt(dispersion_b2)
-    for column in range(number_x):
-        t_practice = 0
-        t_theoretical = CritValues.studentValue(f3, q)
-        for row in range(N):
-            if column == 0:
-                t_practice += middle_y[row] / N
-            else:
-                t_practice += middle_y[row] * matrix_pe[row][column - 1]
-        if fab(t_practice / dispersion_b) < t_theoretical:
-            arr_b[column] = 0
-    return arr_b
+    with Profiler() as p:
+        print("Час виконання стат. перевірки Стьюдета")
+        # Критерій Стьюдента
+        dispersion_b = sqrt(dispersion_b2)
+        for column in range(number_x):
+            t_practice = 0
+            t_theoretical = CritValues.studentValue(f3, q)
+            for row in range(N):
+                if column == 0:
+                    t_practice += middle_y[row] / N
+                else:
+                    t_practice += middle_y[row] * matrix_pe[row][column - 1]
+            if fab(t_practice / dispersion_b) < t_theoretical:
+                arr_b[column] = 0
+        return arr_b
 
 
 def fisher_test():
-    # Критерій Фішера
-    dispersion_ad = 0
-    f4 = N - d
-    for row in range(len(middle_y)):
-        dispersion_ad += (m * (middle_y[row] - check_result(student_arr, row))) / (N - d)
-    F_practice = dispersion_ad / dispersion_b2
-    F_theoretical = CritValues.fisherValue(f3, f4, q)
-    return F_practice < F_theoretical
+    with Profiler() as p:
+        print("Час виконання стат. перевірки Фішера")
+        # Критерій Фішера
+        dispersion_ad = 0
+        f4 = N - d
+        for row in range(len(middle_y)):
+            dispersion_ad += (m * (middle_y[row] - check_result(student_arr, row))) / (N - d)
+        F_practice = dispersion_ad / dispersion_b2
+        F_theoretical = CritValues.fisherValue(f3, f4, q)
+        return F_practice < F_theoretical
 
 
 m, d = 0, 0
 N = 15
+
 #  Ввід значень
 correct_input = False
 while not correct_input:
@@ -153,7 +166,6 @@ while not correct_input:
         correct_input = True
     except ValueError:
         pass
-
 
 matrix_x = [[] for x in range(N)]
 for i in range(len(matrix_x)):
@@ -210,16 +222,19 @@ while not homogeneity:
     f3 = f1 * f2
     q = 1 - p
     Gp = max(dispersion_y) / sum(dispersion_y)
-    print("Критерій Кохрена")
-    Gt = CritValues.cohrenValue(f2, f1, q)
-    if Gt > Gp or m >= 25:
-        print("Дисперсія однорідна при рівні значимості {:.2f}!\nЗбільшувати m не потрібно.".format(q))
-        homogeneity = True
-    else:
-        print("Дисперсія не однорідна при рівні значимості {:.2f}!".format(q))
-        m += 1
-    if m == 25:
-        exit()
+    with Profiler() as p:
+        print("Критерій Кохрена")
+        Gt = CritValues.cohrenValue(f2, f1, q)
+        if Gt > Gp or m >= 25:
+            print("Дисперсія однорідна при рівні значимості {:.2f}!\nЗбільшувати m не потрібно.".format(q))
+            homogeneity = True
+            print("Час виконання стат. перевірки Кохрена")
+        else:
+            print("Дисперсія не однорідна при рівні значимості {:.2f}!".format(q))
+            m += 1
+            print("Час виконання стат. перевірки Кохрена")
+        if m == 25:
+            exit()
 
 dispersion_b2 = sum(dispersion_y) / (N * N * m)
 student_arr = list(student_test(beta))
